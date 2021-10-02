@@ -57,6 +57,8 @@ func getSafeLowByTicker() (int64, error) {
 	}
 }
 
+var GWeiMultiplier int64 = 1000000000
+
 func SafeLow() (price int64, err error) {
 	safeLow := getSafeLow()
 	if safeLow == -1 {
@@ -68,6 +70,6 @@ func SafeLow() (price int64, err error) {
 	}
 	log.Info("safe low = ", safeLow)
 	gasFeeCheck := safeLow/10 + 10
-	price = gasFeeCheck
+	price = gasFeeCheck * GWeiMultiplier
 	return
 }
