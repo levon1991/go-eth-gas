@@ -2,11 +2,12 @@ package gas
 
 import (
 	"errors"
-	json "github.com/json-iterator/go"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"time"
+
+	json "github.com/json-iterator/go"
+	log "github.com/sirupsen/logrus"
 )
 
 type gasPrice struct {
@@ -17,6 +18,16 @@ var (
 	gasPriceUrl        = "https://ethgasstation.info/api/ethgasAPI.json"
 	gasPriceReserveUrl = "https://data-api.defipulse.com/api/v1/egs/api/ethgasAPI.json"
 )
+
+type GasService interface {
+	GetSafeLow() (price int64, err error)
+}
+
+type Gas struct{}
+
+func (g Gas) GetSafeLow() (price int64, err error) {
+	return SafeLow()
+}
 
 func getSafeLow() int64 {
 	res, err := http.Get(gasPriceUrl)
