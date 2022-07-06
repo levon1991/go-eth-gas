@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/levon1991/go-eth-gas/limit/hold"
-
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"github.com/ybbus/jsonrpc/v2"
+
+	"github.com/levon1991/go-eth-gas/limit/hold"
 )
 
 type Limiter interface {
@@ -33,7 +33,7 @@ func (c *Conn) Connect() {
 	})
 
 	if c.client == nil {
-		log.Fatalf("Can't connect to wallet")
+		log.Fatal().Msg("Can't connect to wallet")
 	}
 }
 
@@ -47,7 +47,7 @@ func (c Conn) Start() {
 		if err != nil {
 			return
 		}
-		log.Info("fee: ", fee)
+		log.Info().Msgf("fee: %f", fee)
 	}
 
 }
