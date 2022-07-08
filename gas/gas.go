@@ -7,7 +7,7 @@ import (
 	"time"
 
 	json "github.com/json-iterator/go"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 )
 
 type gasPrice struct {
@@ -58,7 +58,7 @@ func getSafeLowByTicker() (int64, error) {
 		case <-ticker.C:
 			low := getSafeLow()
 			if low == -1 {
-				log.Info("can't get gas second time")
+				log.Info().Msg("can't get gas second time")
 				continue
 			}
 			return low, nil
@@ -73,13 +73,13 @@ var GWeiMultiplier int64 = 1000000000
 func SafeLow() (price int64, err error) {
 	safeLow := getSafeLow()
 	if safeLow == -1 {
-		log.Info("can't get gas first time")
+		log.Info().Msg("can't get gas first time")
 		if safeLow, err = getSafeLowByTicker(); err != nil {
-			log.Info("can't get gas last time")
+			log.Info().Msg("can't get gas last time")
 			return 0, err
 		}
 	}
-	log.Info("safe low = ", safeLow)
+	log.Info().Msgf("safe low = %d", safeLow)
 	gasFeeCheck := safeLow/10 + 10
 	price = gasFeeCheck * GWeiMultiplier
 	return

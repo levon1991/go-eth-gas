@@ -6,12 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/sync/errgroup"
-
 	json "github.com/json-iterator/go"
-	log "github.com/sirupsen/logrus"
-
+	"github.com/rs/zerolog/log"
 	"github.com/ybbus/jsonrpc/v2"
+	"golang.org/x/sync/errgroup"
 )
 
 type EthTransactions struct {
@@ -60,7 +58,7 @@ func getTransactionsFromBlock(client jsonrpc.RPCClient, taskChen chan float64, h
 			transJSON, _ := json.Marshal(trans)
 			tr := &EthTransactions{}
 			if err := json.Unmarshal(transJSON, &tr); err != nil {
-				log.Fatal(err)
+				log.Fatal().Msg(err.Error())
 			}
 			if tr.Input != "0x" && len(tr.Input) > 10 && tr.Input[:10] == erc20 && (tr.To == usdTContractAddress || tr.To == usdCContractAddress) {
 				gasRecipient := getRecipient(client, tr.Hash)
@@ -143,7 +141,7 @@ func GetEstimateLimit(client jsonrpc.RPCClient) (float64, error) {
 
 	go func() {
 		if err = wg.Wait(); err != nil {
-			log.Error(err)
+			log.Error().Msg(err.Error())
 		}
 		close(taskChan)
 	}()
