@@ -1,86 +1,86 @@
 package gas
 
 import (
-	"errors"
+	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
+	"sync"
 	"time"
-
-	json "github.com/json-iterator/go"
-	"github.com/rs/zerolog/log"
-)
-
-type gasPrice struct {
-	SafeLow int64 `json:"safeLow"`
-}
-
-var (
-	gasPriceUrl        = "https://ethgasstation.info/api/ethgasAPI.json"
-	gasPriceReserveUrl = "https://data-api.defipulse.com/api/v1/egs/api/ethgasAPI.json"
 )
 
 type GasService interface {
-	GetSafeLow() (price int64, err error)
+	GetSafeLow() int
 }
 
-type Gas struct{}
-
-func (g Gas) GetSafeLow() (price int64, err error) {
-	return SafeLow()
+type Gas struct {
+	safeLowGlob int
+	mu          sync.Mutex
+	Ch          chan struct{}
 }
 
-func getSafeLow() int64 {
-	res, err := http.Get(gasPriceUrl)
+func (g *Gas) GetSafeLow() int {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.safeLowGlob
+}
+
+type Price struct {
+	Result struct {
+		SafeGasPrice string `json:"SafeGasPrice"`
+	} `json:"result"`
+}
+
+var gasPriceURL = "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey="
+
+func (g *Gas) SafeLowByTicker() {
+	res, err := http.Get(gasPriceURL)
 	if err != nil {
-		res, err = http.Get(gasPriceReserveUrl)
-		if err != nil {
-			return -1
-		}
+		return
 	}
 
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(res.Body)
 
-	gas := gasPrice{}
-	if err = json.NewDecoder(res.Body).Decode(&gas); err != nil {
-		return -1
+	gas := Price{}
+	err = json.NewDecoder(res.Body).Decode(&gas)
+	if err != nil {
+		return
 	}
 
-	return gas.SafeLow
+	safe, err := strconv.Atoi(gas.Result.SafeGasPrice)
+	if err != nil {
+		return
+	}
+
+	g.mu.Lock()
+	g.safeLowGlob = safe
+	g.mu.Unlock()
 }
 
-func getSafeLowByTicker() (int64, error) {
-	ticker := time.NewTicker(5 * time.Second)
-	ticker2 := time.NewTicker(11 * time.Second)
-	for {
-		select {
-		case <-ticker.C:
-			low := getSafeLow()
-			if low == -1 {
-				log.Info().Msg("can't get gas second time")
-				continue
+func StartTicker(f func(), delay int) chan struct{} {
+	done := make(chan struct{}, 1)
+	go func() {
+		ticker := time.NewTicker(time.Second * time.Duration(delay))
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				f()
+			case <-done:
+				return
 			}
-			return low, nil
-		case <-ticker2.C:
-			return 0, errors.New("can't get optimal gas gas")
 		}
-	}
+	}()
+	return done
 }
 
-var GWeiMultiplier int64 = 1000000000
-
-func SafeLow() (price int64, err error) {
-	safeLow := getSafeLow()
-	if safeLow == -1 {
-		log.Info().Msg("can't get gas first time")
-		if safeLow, err = getSafeLowByTicker(); err != nil {
-			log.Info().Msg("can't get gas last time")
-			return 0, err
-		}
-	}
-	log.Info().Msgf("safe low = %d", safeLow)
-	gasFeeCheck := safeLow/10 + 10
-	price = gasFeeCheck * GWeiMultiplier
-	return
+func New(delay int) *Gas {
+	gas := &Gas{}
+	gas.SafeLowByTicker()
+	gas.Ch = StartTicker(func() {
+		gas.SafeLowByTicker()
+	}, delay)
+	return gas
 }

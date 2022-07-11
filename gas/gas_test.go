@@ -6,7 +6,8 @@ import (
 )
 
 func TestGetGasPrice(t *testing.T) {
-	price, err := SafeLow()
+	g := New(8)
+	defer close(g.Ch)
+	price := g.GetSafeLow()
 	require.NotZero(t, price)
-	require.Nil(t, err)
 }
