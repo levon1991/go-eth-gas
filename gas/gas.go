@@ -17,6 +17,7 @@ type Gas struct {
 	safeLowGlob int
 	mu          sync.Mutex
 	Ch          chan struct{}
+	apiKey      string
 }
 
 func (g *Gas) GetSafeLow() int {
@@ -34,7 +35,7 @@ type Price struct {
 var gasPriceURL = "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey="
 
 func (g *Gas) SafeLowByTicker() {
-	res, err := http.Get(gasPriceURL)
+	res, err := http.Get(gasPriceURL + g.apiKey)
 	if err != nil {
 		return
 	}
@@ -76,8 +77,10 @@ func StartTicker(f func(), delay int) chan struct{} {
 	return done
 }
 
-func New(delay int) *Gas {
-	gas := &Gas{}
+func New(delay int, apiKey string) *Gas {
+	gas := &Gas{
+		apiKey: apiKey,
+	}
 	gas.SafeLowByTicker()
 	gas.Ch = StartTicker(func() {
 		gas.SafeLowByTicker()
